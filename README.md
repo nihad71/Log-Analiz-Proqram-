@@ -56,10 +56,11 @@ Bütün fayllar avtomatik olaraq `output_files` qovluğundan tapıla bilər.
 
 1. Log faylını `server_logs.txt` olaraq proqramla eyni qovluqda saxlayın.
 2. `main()` funksiyasını işə salmaq üçün:
+   
     ```bash
     python <program_adı>.py
     ```
-3. Təhlil tamamlandıqda, nəticə faylları `output_files` qovluğundan yoxlaya bilərsiniz.
+4. Təhlil tamamlandıqda, nəticə faylları `output_files` qovluğundan yoxlaya bilərsiniz.
 
 ## Struktur
 
@@ -74,5 +75,3 @@ Proqram çıxış fayllarını bir qovluqda toplamaq üçün "output_files" adl�
 Selenium kitabxanası üçün uyğun versiyalı ChromeDriver yükləyin.
 
 Brauzer versiyanızı yoxlayıb uyğun sürücünü [buradan yükləyin](https://sites.google.com/a/chromium.org/chromedriver/).
-
-
