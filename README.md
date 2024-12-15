@@ -35,6 +35,10 @@ Proqramı şəbəkədə istifadə etmək üçün aşağıdakı proqram paketlər
 
 ### Python paketlərini qurmaq:
 ```
+pip install selenium
+```
+
+```
 pip install selenium tqdm
 ```
 ### Selenium üçün brauzer sürücüsü
