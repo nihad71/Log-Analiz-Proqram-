@@ -6,6 +6,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from collections import Counter
 from tqdm import tqdm  # Loading bar üçün
+import time
 
 # Çıxış faylları üçün əsas qovluq
 OUTPUT_FOLDER = "output_files"
@@ -13,10 +14,11 @@ os.makedirs(OUTPUT_FOLDER, exist_ok=True)  # Qovluq mövcud deyilsə, yaradılı
 
 # Çıxış fayllarının yolları
 LOG_FILE = "server_logs.txt"
-FAILED_LOGINS_FILE = os.path.join(OUTPUT_FOLDER, "unsuccessful_logins.json")
-LOG_REPORT_CSV = os.path.join(OUTPUT_FOLDER, "logs_report.csv")
-THREAT_IPS_FILE = os.path.join(OUTPUT_FOLDER, "detected_threat_ips.json")
-MATCHED_THREATS_FILE = os.path.join(OUTPUT_FOLDER, "matched_threat_logs.json")
+FAILED_LOGINS_FILE = os.path.join(OUTPUT_FOLDER, "failed_logins.json")
+LOG_ANALYSIS_TXT = os.path.join(OUTPUT_FOLDER, "log_analysis.txt")
+LOG_REPORT_CSV = os.path.join(OUTPUT_FOLDER, "log_analysis.csv")
+THREAT_IPS_FILE = os.path.join(OUTPUT_FOLDER, "threat_ips.json")
+COMBINED_SECURITY_DATA_FILE = os.path.join(OUTPUT_FOLDER, "combined_security_data.json")
 
 # 1. Log məlumatlarını oxuma və ayırma
 def extract_log_data(log_path):
@@ -24,6 +26,7 @@ def extract_log_data(log_path):
         with open(log_path, 'r') as file:
             logs = []
             for entry in tqdm(file, desc="Log qeydləri oxunur"):
+                time.sleep(0.5) #süni gecikmə
                 data = re.match(r'(?P<ip>\d+\.\d+\.\d+\.\d+).*?\[(?P<timestamp>.*?)\] "(?P<method>\w+) .*? HTTP/.*?" (?P<status>\d+)', entry)
                 if data:
                     logs.append(data.groupdict())
@@ -37,30 +40,44 @@ def extract_log_data(log_path):
 def find_failed_attempts(log_entries):
     failed_ips = Counter()
     for entry in tqdm(log_entries, desc="Uğursuz girişlər analiz edilir"):
+        time.sleep(1) #süni gecikmə
         if entry['status'].startswith('40'):  # "40x" status kodları uğursuz cəhdləri göstərir
             failed_ips[entry['ip']] += 1
     return {ip: count for ip, count in failed_ips.items() if count >= 5}
 
-# 3. Log məlumatlarını CSV formatında saxlamaq
+# 3. Uğursuz girişlər və sayını mətn faylına yazmaq
+def save_failed_attempts_txt(failed_attempts):
+    try:
+        with open(LOG_ANALYSIS_TXT, 'w', encoding='utf-8') as file:
+            for ip, count in failed_attempts.items():
+                file.write(f"{ip}: {count} uğursuz giriş cəhdi\n")
+        print(f"Uğursuz girişlər {LOG_ANALYSIS_TXT} faylına yazıldı.")
+    except Exception as e:
+        print(f"Mətn faylında problem: {e}")
+
+# 4. Log məlumatlarını CSV formatında saxlamaq
 def save_logs_to_csv(log_entries, csv_path):
     try:
         with open(csv_path, 'w', newline='') as csv_file:
             writer = csv.DictWriter(csv_file, fieldnames=["ip", "timestamp", "method", "status"])
             writer.writeheader()
             for log in tqdm(log_entries, desc="Log qeydləri CSV-yə yazılır"):
+                time.sleep(1) #süni gecikmə
                 writer.writerow(log)
         print(f"Log məlumatları {csv_path} faylına yazıldı.")
     except Exception as e:
         print(f"CSV faylında problem yarandı: {e}")
 
-# 4. Təhlükəli IP-lərin siyahısını əldə etmək
+# 5. Təhlükəli IP-lərin siyahısını əldə etmək
 def fetch_threat_ips(url):
     try:
         driver = webdriver.Chrome()
+        time.sleep(1.5)
         driver.get(url)
         rows = driver.find_elements(By.XPATH, "//table//tr")
         threats = {}
         for row in tqdm(rows[1:], desc="Təhlükəli IP-lər yüklənir"):
+            time.sleep(1) #süni gecikmə
             cols = row.find_elements(By.TAG_NAME, "td")
             if len(cols) >= 2:
                 threats[cols[0].text.strip()] = cols[1].text.strip()
@@ -70,16 +87,17 @@ def fetch_threat_ips(url):
         print(f"Təhlükəli IP-lərin yüklənməsi zamanı səhv: {e}")
         return {}
 
-# 5. Təhlükəli IP-lərlə log məlumatlarını uyğunlaşdırmaq
+# 6. Təhlükəli IP-lərlə log məlumatlarını uyğunlaşdırmaq
 def correlate_threat_ips(log_entries, threat_data):
     correlated = []
     for log in tqdm(log_entries, desc="Təhlükəli IP-lərlə uyğunlaşdırılır"):
+        time.sleep(1) #süni gecikmə
         if log['ip'] in threat_data:
             log['threat_description'] = threat_data[log['ip']]
             correlated.append(log)
     return correlated
 
-# 6. Bütün məlumatları saxla
+# 7. JSON fayllarını saxlamaq
 def save_to_json(data, file_path):
     try:
         with open(file_path, 'w') as json_file:
@@ -91,6 +109,7 @@ def save_to_json(data, file_path):
 # Əsas Funksiya
 def main():
     print("Analiz başlandı...")
+
     # 1. Log məlumatlarını oxu
     logs = extract_log_data(LOG_FILE)
     if not logs:
@@ -100,6 +119,7 @@ def main():
     # 2. Uğursuz giriş cəhdlərini təhlil et
     failed_attempts = find_failed_attempts(logs)
     save_to_json(failed_attempts, FAILED_LOGINS_FILE)
+    save_failed_attempts_txt(failed_attempts)
 
     # 3. Logları CSV-yə yaz
     save_logs_to_csv(logs, LOG_REPORT_CSV)
@@ -111,10 +131,8 @@ def main():
 
     # 5. Təhlükəli IP-lərlə log məlumatlarını uyğunlaşdır
     matched_threats = correlate_threat_ips(logs, threat_ips)
-    if matched_threats:
-        save_to_json(matched_threats, MATCHED_THREATS_FILE)
-    else:
-        print("Uyğun təhlükəli IP-lər tapılmadı.")
+    save_to_json(matched_threats, COMBINED_SECURITY_DATA_FILE)
+
     print("Analiz tamamlandı!")
 
 if __name__ == "__main__":
