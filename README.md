@@ -59,7 +59,13 @@ Bütün fayllar avtomatik olaraq `output_files` qovluğundan tapıla bilər.
 ## İstifadə Qaydaları
 
 1. Log faylını `server_logs.txt` olaraq proqramla eyni qovluqda saxlayın.
-2. `main()` funksiyasını işə salmaq üçün:
+2. Funksiyanı işə salmazdan əvvəl `index.html` faylını localda açmaq üçün:
+
+      ```bash
+      python -m http.server <port nömrəsi>
+      ```
+      
+3. `main()` funksiyasını işə salmaq üçün:
    
     ```bash
     python <program_adı>.py
